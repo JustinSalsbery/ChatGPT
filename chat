@@ -1,15 +1,18 @@
 #! /opt/homebrew/bin/python3
 
-import sys, json
+import sys, os, json
 import openai
+
 
 if not len(sys.argv) == 2:
     print("chat \"Explain how pi is calculated.\"")
     sys.exit(1)
 
+FILE_PATH = os.path.expanduser("~/.chat")
+
 memory = {}
 try:
-    with open(".chat", "r") as file:
+    with open(FILE_PATH, "r") as file:
         memory = json.load(file)
 except (IOError, json.decoder.JSONDecodeError):
     pass
@@ -25,7 +28,7 @@ response = openai.ChatCompletion.create(
 response = response["choices"][0]["message"]["content"]
 print(response)
 
-with open(".chat", "w") as file:
+with open(FILE_PATH, "w") as file:
     memory = {"query" : sys.argv[1], 
             "response" : response}
-    json.dump(memory, file, indent=4, ensure_ascii=False)
+    file.write(json.dumps(memory))
