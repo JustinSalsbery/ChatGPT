@@ -31,4 +31,4 @@ print(response)
 with open(FILE_PATH, "w") as file:
     memory = {"query" : sys.argv[1], 
             "response" : response}
-    file.write(json.dumps(memory))
+    json.dump(memory, file)
