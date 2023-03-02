@@ -1,4 +1,5 @@
 # ChatGPT
+Terminal interface for ChatGPT. Remembers last query (only).
 
 ## Requires:
 - openai python library. Installation instructions found at: https://platform.openai.com/docs/libraries
@@ -6,3 +7,6 @@
 
 ## Installation:
 - Place in /usr/local/bin/
+
+## Use:
+- chat "How is pi calculated?"
