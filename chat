@@ -5,7 +5,7 @@ import openai
 
 
 if not len(sys.argv) == 2:
-    print("chat \"Explain how pi is calculated.\"")
+    print('chat "Explain how pi is calculated."')
     sys.exit(1)
 
 FILE_PATH = os.path.expanduser("~/.chat")
@@ -26,7 +26,9 @@ response = openai.ChatCompletion.create(
     ]
 )
 response = response["choices"][0]["message"]["content"]
+
 print(response)
+sys.stdout.flush()
 
 with open(FILE_PATH, "w") as file:
     memory = {"query" : sys.argv[1], 
