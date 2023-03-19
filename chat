@@ -12,7 +12,7 @@ content = sys.argv[-1]
 length = 2 # Default; May be overwritten
 messages = []
 
-if len(sys.argv) == 1:
+if len(sys.argv) == 1 or len(sys.argv) > 4:
     print('chat "Explain how pi is calculated."')
     print('chat "Explain the following code: $(cat index.js)"')
     print('chat "$(cat << EOF \n Explain the difference between \' and " in javascript. \n EOF \n )"')
@@ -33,7 +33,7 @@ try:
 
         checkMessages(history["messages"])
         messages = history["messages"]
-except (IOError, json.decoder.JSONDecodeError, AttributeError, ValueError, AssertionError):
+except (IOError, json.decoder.JSONDecodeError, AttributeError, KeyError, ValueError, AssertionError):
     pass
 
 if sys.argv[1] == "-h":
@@ -45,18 +45,19 @@ if sys.argv[1] == "-h":
         print("Error: You must provide an integer after the -h option.")
         sys.exit(1)
 
-messages = [] if length == 0 else messages[length * -2:]
+if len(sys.argv) != 3: # Length option, no prompt
+    messages = [] if length == 0 else messages[length * -2:]
+    print(messages)
+    messages.append({"role": "user", "content": content})
+    completion = openai.ChatCompletion.create(
+        model=MODEL,
+        messages=messages
+    )["choices"][0]["message"]["content"]
+    messages.append({"role": "assistant", "content": completion})
 
-messages.append({"role": "user", "content": content})
-completion = openai.ChatCompletion.create(
-    model=MODEL,
-    messages=messages
-)["choices"][0]["message"]["content"]
-messages.append({"role": "assistant", "content": completion})
-
-print("*" * TERMINAL_WIDTH)
-print(completion)
-print("*" * TERMINAL_WIDTH)
+    print("*" * TERMINAL_WIDTH)
+    print(completion)
+    print("*" * TERMINAL_WIDTH)
 
 with open(FILE_PATH, "w") as file:
     history = {
