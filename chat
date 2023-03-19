@@ -4,37 +4,63 @@ import sys, os, json, shutil
 import openai
 
 
-if not len(sys.argv) == 2:
-    print('chat "Explain how pi is calculated."')
-    sys.exit(1)
-
 FILE_PATH = os.path.expanduser("~/.chat")
 TERMINAL_WIDTH = shutil.get_terminal_size().columns
+MODEL = "gpt-3.5-turbo"
 
-memory = {}
+content = sys.argv[-1]
+length = 2 # Default; May be overwritten
+messages = []
+
+if len(sys.argv) == 1:
+    print('chat "Explain how pi is calculated."')
+    print('chat "Explain the following code: $(cat index.js)"')
+    print('chat "$(cat << EOF \n Explain the difference between \' and " in javascript. \n EOF \n )"')
+    sys.exit(1)
+
+def checkMessages(messages):
+    for message in messages:
+        assert(message["role"] == "user" or message["role"] == "assistant")
+        assert("content" in message)
+
 try:
     with open(FILE_PATH, "r") as file:
-        memory = json.load(file)
-except (IOError, json.decoder.JSONDecodeError):
+        history = json.load(file)
+
+        length = int(history["length"])
+        if length < 0:
+            length = 0
+
+        checkMessages(history["messages"])
+        messages = history["messages"]
+except (IOError, json.decoder.JSONDecodeError, AttributeError, ValueError, AssertionError):
     pass
 
-response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
-    messages=[
-        {"role": "user", "content": memory.get("query", "")},
-        {"role": "assistant", "content": memory.get("response", "")},
-        {"role": "user", "content": sys.argv[1]}
-    ]
-)
-response = response["choices"][0]["message"]["content"]
+if sys.argv[1] == "-h":
+    try:
+        length = int(sys.argv[2])
+        if length < 0:
+            length = 0
+    except ValueError:
+        print("Error: You must provide an integer after the -h option.")
+        sys.exit(1)
+
+messages = [] if length == 0 else messages[length * -2:]
+
+messages.append({"role": "user", "content": content})
+completion = openai.ChatCompletion.create(
+    model=MODEL,
+    messages=messages
+)["choices"][0]["message"]["content"]
+messages.append({"role": "assistant", "content": completion})
 
 print("*" * TERMINAL_WIDTH)
-print(response)
+print(completion)
 print("*" * TERMINAL_WIDTH)
-
-sys.stdout.flush()
 
 with open(FILE_PATH, "w") as file:
-    memory = {"query" : sys.argv[1], 
-            "response" : response}
-    json.dump(memory, file)
+    history = {
+        "length": length,
+        "messages": messages
+    }
+    json.dump(history, file)
