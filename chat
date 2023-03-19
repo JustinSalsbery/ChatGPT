@@ -47,7 +47,7 @@ if sys.argv[1] == "-h":
 
 if len(sys.argv) != 3: # Length option, no prompt
     messages = [] if length == 0 else messages[length * -2:]
-    print(messages)
+
     messages.append({"role": "user", "content": content})
     completion = openai.ChatCompletion.create(
         model=MODEL,
