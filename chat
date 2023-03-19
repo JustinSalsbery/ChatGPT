@@ -1,67 +1,65 @@
 #! /opt/homebrew/bin/python3
 
-import sys, os, json, shutil
-import openai
+import sys, os, json, shutil, argparse
+import openai # Requires install
 
 
 FILE_PATH = os.path.expanduser("~/.chat")
-TERMINAL_WIDTH = shutil.get_terminal_size().columns
 MODEL = "gpt-3.5-turbo"
-
-content = sys.argv[-1]
 length = 2 # Default; May be overwritten
 messages = []
 
-if len(sys.argv) == 1 or len(sys.argv) > 4:
+# Set up argument parser
+parser = argparse.ArgumentParser(description="Terminal ChatGPT interface.")
+parser.add_argument("prompt", nargs="?", help="Text prompt, e.g., 'Explain how pi is calculated'")
+parser.add_argument("-m", "--memory-length", type=int, help="The number of messages to retain in the conversation history")
+
+# Parse command line arguments
+args = parser.parse_args()
+
+if len(sys.argv) == 1:
     print('chat "Explain how pi is calculated."')
     print('chat "Explain the following code: $(cat index.js)"')
     print('chat "$(cat << EOF \n Explain the difference between \' and " in javascript. \n EOF \n )"')
-    sys.exit(1)
+    sys.exit(0)
 
 def checkMessages(messages):
     for message in messages:
         assert(message["role"] == "user" or message["role"] == "assistant")
         assert("content" in message)
+    return messages
 
 try:
     with open(FILE_PATH, "r") as file:
-        history = json.load(file)
-
-        length = int(history["length"])
-        if length < 0:
-            length = 0
-
-        checkMessages(history["messages"])
-        messages = history["messages"]
+        memory = json.load(file)
+        length = int(memory["length"])
+        messages = checkMessages(memory["messages"])
 except (IOError, json.decoder.JSONDecodeError, AttributeError, KeyError, ValueError, AssertionError):
     pass
 
-if sys.argv[1] == "-h":
-    try:
-        length = int(sys.argv[2])
-        if length < 0:
-            length = 0
-    except (IndexError, ValueError):
-        print("Error: You must provide an integer after the -h option.")
-        sys.exit(1)
+if args.memory_length != None:
+    length = args.memory_length
+length = 0 if length < 0 else length
 
-if len(sys.argv) != 3: # Length option, no prompt
+if args.prompt != None:
     messages = [] if length == 0 else messages[length * -2:]
 
-    messages.append({"role": "user", "content": content})
+    messages.append({"role": "user", "content": args.prompt})
     completion = openai.ChatCompletion.create(
         model=MODEL,
         messages=messages
     )["choices"][0]["message"]["content"]
     messages.append({"role": "assistant", "content": completion})
 
-    print("*" * TERMINAL_WIDTH)
+    terminal_width = shutil.get_terminal_size().columns
+    print("*" * terminal_width)
     print(completion)
-    print("*" * TERMINAL_WIDTH)
+    print("*" * terminal_width)
 
 with open(FILE_PATH, "w") as file:
-    history = {
+    messages = [] if length == 0 else messages[length * -2:]
+    memory = {
         "length": length,
         "messages": messages
     }
-    json.dump(history, file)
+    json.dump(memory, file)
