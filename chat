@@ -41,7 +41,7 @@ if sys.argv[1] == "-h":
         length = int(sys.argv[2])
         if length < 0:
             length = 0
-    except ValueError:
+    except (IndexError, ValueError):
         print("Error: You must provide an integer after the -h option.")
         sys.exit(1)
 
