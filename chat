@@ -88,8 +88,8 @@ if args.settings:
 
 if args.prompt is not None:
         messages = [] if retain == 0 else messages[retain * -2:]
-
         messages.insert(0, {"role": "system", "content": instructions})
+
         messages.append({"role": "user", "content": args.prompt})
         completion = openai.ChatCompletion.create(
                 model=MODELS[model - 3],
@@ -97,6 +97,8 @@ if args.prompt is not None:
                 messages=messages
         )["choices"][0]["message"]["content"]
         messages.append({"role": "assistant", "content": completion})
+
+        assert(messages[0]["role"] == "system")
         messages.pop(0) # Remove instructions
 
         terminal_width = shutil.get_terminal_size().columns
