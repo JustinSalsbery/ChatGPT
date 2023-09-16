@@ -5,61 +5,81 @@ import openai # Requires install
 
 
 FILE_PATH = os.path.expanduser("~/.chat")
-MODEL = "gpt-3.5-turbo"
-length = 2 # Default; May be overwritten
+MODELS = ["gpt-3.5-turbo", "gpt-4"]
+
+model = 3 # Defaults
+retain = 2
 messages = []
 
 # Set up argument parser
-parser = argparse.ArgumentParser(description="Terminal ChatGPT interface.")
-parser.add_argument("prompt", nargs="?", help="Text prompt, e.g., 'Explain how pi is calculated'")
-parser.add_argument("-m", "--memory-length", type=int, help="The number of messages to retain in the conversation history")
+parser = argparse.ArgumentParser(description="terminal ChatGPT interface")
+parser.add_argument("prompt", nargs="?", help="text prompt, e.g., 'Explain how pi is calculated.'")
+parser.add_argument("-s", "--settings", action='store_true', help="show current settings and exit")
+parser.add_argument("-m", "--model", type=int, choices=[3, 4], help="ChatGPT model selected")
+parser.add_argument("-r", "--retain", type=int, choices=range(0, 10), help="number of messages retained in conversation")
 
 # Parse command line arguments
 args = parser.parse_args()
 
-if len(sys.argv) == 1:
-    print('chat "Explain how pi is calculated."')
-    print('chat "Explain the following code: $(cat index.js)"')
-    print('chat "$(cat << EOF \n Explain the difference between \' and " in javascript. \n EOF \n )"')
-    sys.exit(0)
+if not sys.stdin.isatty():
+    args.prompt = sys.stdin.read().strip()
 
-def checkMessages(messages):
-    for message in messages:
-        assert(message["role"] == "user" or message["role"] == "assistant")
-        assert("content" in message)
-    return messages
+if len(sys.argv) == 1 and args.prompt is None:
+        print('examples:')
+        print('  chat "Explain how pi is calculated."')
+        print('  chat "Explain the following code: $(cat index.js)"')
+        print('  chat "$(cat << EOF \n\tExplain the difference between \' and " in javascript. \n\tEOF \n\t)"')
+        sys.exit(0)
+
+def check_messages(messages):
+        for message in messages:
+                assert(message["role"] == "user" or message["role"] == "assistant")
+                assert("content" in message)
+        return messages
 
 try:
-    with open(FILE_PATH, "r") as file:
-        memory = json.load(file)
-        length = int(memory["length"])
-        messages = checkMessages(memory["messages"])
+        with open(FILE_PATH, "r") as file:
+                memory = json.load(file)
+                model = int(memory["model"])
+                retain = int(memory["retain"])
+                messages = check_messages(memory["messages"])
 except (IOError, json.decoder.JSONDecodeError, AttributeError, KeyError, ValueError, AssertionError):
-    pass
+        pass
 
-if args.memory_length != None:
-    length = args.memory_length
-length = 0 if length < 0 else length
+if args.model is not None:
+        model = args.model
+model = 3 if model != 4 else model
 
-if args.prompt != None:
-    messages = [] if length == 0 else messages[length * -2:]
+if args.retain is not None:
+        retain = args.retain
+retain = 0 if retain < 0 else retain
 
-    messages.append({"role": "user", "content": args.prompt})
-    completion = openai.ChatCompletion.create(
-        model=MODEL,
-        messages=messages
-    )["choices"][0]["message"]["content"]
-    messages.append({"role": "assistant", "content": completion})
+if args.settings:
+        print('settings:')
+        print(f'  model: {MODELS[model - 3]}')
+        print(f'  retain: {retain}')
+        sys.exit(0)
 
-    terminal_width = shutil.get_terminal_size().columns
-    print("*" * terminal_width)
-    print(completion)
-    print("*" * terminal_width)
+if args.prompt is not None:
+        messages = [] if retain == 0 else messages[retain * -2:]
+
+        messages.append({"role": "user", "content": args.prompt})
+        completion = openai.ChatCompletion.create(
+                model=MODELS[model - 3],
+                messages=messages
+        )["choices"][0]["message"]["content"]
+        messages.append({"role": "assistant", "content": completion})
+
+        terminal_width = shutil.get_terminal_size().columns
+        print("*" * terminal_width)
+        print(completion)
+        print("*" * terminal_width)
 
 with open(FILE_PATH, "w") as file:
-    messages = [] if length == 0 else messages[length * -2:]
-    memory = {
-        "length": length,
-        "messages": messages
-    }
-    json.dump(memory, file)
+        messages = [] if retain == 0 else messages[retain * -2:]
+        memory = {
+                "model": model,
+                "retain": retain,
+                "messages": messages
+        }
+        json.dump(memory, file)
