@@ -5,18 +5,20 @@ import os
 import json
 import shutil
 import argparse
-import openai  # requires install
+from openai import OpenAI  # requires install
 
 # constants
 FILE_PATH = os.path.expanduser("~/.chat")
 MODELS = ["gpt-3.5-turbo", "gpt-4"]
-VERSION = "2.1.1"
+VERSION = "2.2"
 
 # defaults
 model = 3
 retain = 3
 temperature = 1.0
-instructions = ""
+instructions = ("If you are asked to complete a complex task, break the task into "
+                "multiple steps and reason your way through each step. Otherwise, "
+                "keep responses short and direct.")
 messages = []
 
 
@@ -87,7 +89,6 @@ except Exception as e:
     pass  # continue using defaults
 
 # update defaults with arguments
-
 if args.model is not None:
     model = args.model
 model = model if 3 <= model <= 4 else 3
@@ -115,20 +116,24 @@ if args.settings:
 # make API call
 if args.prompt is not None:
     messages = [] if retain == 0 else messages[retain * -2:]
-    messages.insert(0, {"role": "system", "content": instructions})
 
+    messages.insert(0, {"role": "system", "content": instructions})
     messages.append({"role": "user", "content": args.prompt})
-    completion = openai.ChatCompletion.create(
+
+    openai = OpenAI()
+    completion = openai.chat.completions.create(
         model=MODELS[model - 3],
         temperature=temperature,
         messages=messages
-    )["choices"][0]["message"]["content"]
+    ).choices[0].message.content
+
     messages.append({"role": "assistant", "content": completion})
 
     assert (messages[0]["role"] == "system")
     messages.pop(0)  # Remove instructions
 
     terminal_width = shutil.get_terminal_size().columns
+
     print("*" * terminal_width)
     print(completion)
     print("*" * terminal_width)
@@ -136,6 +141,7 @@ if args.prompt is not None:
 # rewrite settings file
 with open(FILE_PATH, "w") as file:
     messages = [] if retain == 0 else messages[retain * -2:]
+
     memory = {
         "model": model,
         "retain": retain,
