@@ -1,10 +1,11 @@
-#! /opt/homebrew/bin/python3
+#! python3
 
 import sys
 import os
 import json
 import shutil
 import argparse
+
 from openai import OpenAI  # requires install
 
 # constants
